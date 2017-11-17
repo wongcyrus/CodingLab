@@ -65,3 +65,9 @@ fabric.properties
 ### Scala template
 *.class
 *.log
+.gitignore
+.idea/
+build.sbt
+monitor/
+project/
+src/

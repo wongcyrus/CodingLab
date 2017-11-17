@@ -38,8 +38,10 @@ class MarkerParser(sourceDir: File) {
     val questionTagOption: Option[Set[(String, QuestionTag)]] = questionTags.get(file.getName)
     val content = getFileContents(file)
 
+    def replaceCommentTag(s: String) = s.replace("*//*", "")
+
     def extractAnswer(s: (String, QuestionTag)) = try {
-      Option(content.substring(content.indexOf(s._2.startTag) + s._2.startTag.length, content.indexOf(s._2.endTag)))
+      Option(replaceCommentTag(content.substring(content.indexOf(s._2.startTag) + s._2.startTag.length, content.indexOf(s._2.endTag))))
     } catch {
       case _: Throwable =>
         println(s"Don't delete $s._2.startTag or s._2.endTag, else you will lose mark!")

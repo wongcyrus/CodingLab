@@ -23,7 +23,9 @@ class QrCode {
   }
 
   def getStudentFromJson(json: String): Student = {
-    import com.google.gson.Gson
-    new Gson().fromJson(json, classOf[Student])
+    import org.json4s._
+    import org.json4s.jackson.JsonMethods._
+    implicit val formats = DefaultFormats
+    parse(json).extract[Student]
   }
 }

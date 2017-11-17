@@ -6,10 +6,12 @@ import java.nio.file.Path
 import java.util.Date
 
 import com.beachape.filemanagement.RegistryTypes.Callback
-import com.google.gson.GsonBuilder
 
 import scala.io.Source
 import scalaj.http.Http
+import org.json4s._
+import org.json4s.jackson.Serialization
+import org.json4s.jackson.Serialization.write
 
 class CodeChangeMonitor(sourceDir: File, student: Student) {
   private val startTime = new Date
@@ -39,26 +41,29 @@ class CodeChangeMonitor(sourceDir: File, student: Student) {
     Option(t._1, t._2, answer)
   }
 
-  case class Metadata(hostname: String, ip: String, mac: String, email: String, filePathName: String, startTime: Date)
+  case class Metadata(hostname: String, ip: String, mac: String, email: String, filePathName: String, answers: List[QuestionAnswer], startTime: Date)
 
   private def uploadChanged(t: (Path, String, List[QuestionAnswer])): Option[Boolean] = {
     try {
       println(t)
-      val email = t._1 + "@stu.vtc.edu.hk"
       val filePathName = t._1.getFileName.toString
       val ip = InetAddress.getLocalHost
       val network = NetworkInterface.getByInetAddress(ip)
       val mac = network.getHardwareAddress.toString
-      val metadata = Metadata(ip.getHostName, ip.getHostAddress, mac, email, filePathName, startTime)
-      val gson = (new GsonBuilder).setPrettyPrinting().create
-      val response = Http(student.api)
-        .postForm
+      val metadata = Metadata(ip.getHostName, ip.getHostAddress, mac, student.email, filePathName, t._3, startTime)
+
+      implicit val formats = Serialization.formats(NoTypeHints)
+
+      val body = write(metadata)
+      val answers = write(t._3)
+      println(answers)
+      val response = Http(student.api + "/resource/" + student.email)
+        .put(body)
         .param("code", t._2)
-        .param("metadata", gson.toJson(metadata))
+        .param("answers", answers)
         .asParamMap
       println(response.code)
       Option(response.code == 200)
-      //Option(true)
     }
     catch {
       case e: SocketTimeoutException => println("Connection Error!"); None;
