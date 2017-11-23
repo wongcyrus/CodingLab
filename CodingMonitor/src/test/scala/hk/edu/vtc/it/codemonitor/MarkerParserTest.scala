@@ -30,7 +30,7 @@ class MarkerParserTest extends FunSuite {
     val answer = markerParser.getAnswers(new File(s"$testFolder\\Lab01_student\\ex1_1a.php"))
     answer.foreach(println)
     assert(answer.find(_.source == "ex1_1a.php").size == 1)
-    assert(answer.find(_.source == "ex1_1a.php").get.subQuestion.find(_.name == "ex1_1a2").get.answer == "*/AnswerTwo/*")
+    assert(answer.find(_.source == "ex1_1a.php").get.subQuestion.find(_.name == "ex1_1a2").get.answer == "AnswerTwo")
   }
 
   test("Test Files extract Answer Error") {

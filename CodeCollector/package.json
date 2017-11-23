@@ -1,0 +1,22 @@
+{
+  "name": "CodeCollector",
+  "version": "0.0.1",
+  "description": "API Application for source code",
+  "dependencies": {
+    "aws-sdk": "^2.151.0",
+    "aws-xray-sdk": "^1.1.6",
+    "csvtojson": "^1.1.9",
+    "cfn-response":"^1.0.1"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.135.0",
+    "grunt": "^1.0.1",
+    "grunt-aws-lambda": "^0.13.0",
+    "grunt-pack": "^0.1.5"
+  },
+  "author": "Cyrus Wong",
+  "license": "MIT",
+  "engines": {
+    "node": "6.10"
+  }
+}

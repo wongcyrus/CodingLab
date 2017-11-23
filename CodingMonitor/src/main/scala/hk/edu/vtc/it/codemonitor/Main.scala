@@ -7,6 +7,7 @@ import akka.actor.ActorSystem
 import com.beachape.filemanagement.Messages.RegisterCallback
 import com.beachape.filemanagement.MonitorActor
 
+//java -cp monitor.jar  hk.edu.vtc.it.codemonitor.Main
 object Main extends App {
   val jarLocation = this.getClass.getProtectionDomain.getCodeSource.getLocation.getPath.substring(1).replace("monitor.jar", "")
   println(jarLocation)

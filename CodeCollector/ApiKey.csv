@@ -1,0 +1,3 @@
+Name,key,description,Enabled,usageplanIds
+cywong@vtc.edu.hk,apikey1234abcdefghij0123456789,An imported key,TRUE,dummyUsagePlanIds
+cy.gdoc@gmail.com,apikey1234abcdefghij0123456780,An imported key,TRUE,dummyUsagePlanIds

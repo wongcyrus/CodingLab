@@ -1,8 +1,7 @@
 {
   "source": "https://s3.amazonaws.com/lexinterceptor-voicebucket-19jv3apmz8td9/Lab01_student.zip",
-  "api": "",
+  "api": "https://6tsskuhngg.execute-api.us-east-1.amazonaws.com/Prod",
   "email": "cywong@vtc.edu.hk",
-  "accessKey": "asasas",
-  "secretKey": "asasasasssa",
+  "apiKey": "5HQHhXFOLQ9PUeGyQW5JR7N2umq5F4aa2icmQrYx",
   "isTest": false
 }

@@ -3,6 +3,8 @@ package hk.edu.vtc.it.codemonitor
 import java.io.File
 
 import scala.io.Source
+import scalaz.Scalaz._
+import scalaz._
 
 class MarkerParser(sourceDir: File) {
   def fileStream(dir: File): Stream[File] =
@@ -38,7 +40,19 @@ class MarkerParser(sourceDir: File) {
     val questionTagOption: Option[Set[(String, QuestionTag)]] = questionTags.get(file.getName)
     val content = getFileContents(file)
 
-    def replaceCommentTag(s: String) = s.replace("*//*", "")
+    def removeStart(s: String, tag: String): String = if (s.startsWith(tag))
+      s.substring(tag.length) else
+      s
+
+    def removeEnd(s: String, tag: String): String = if (s.endsWith(tag))
+      s.substring(0, s.length - tag.length) else
+      s
+
+    def replaceCommentTag(s: String) = s |> {
+      removeStart(_, "*/")
+    } |> {
+      removeEnd(_, "/*")
+    }
 
     def extractAnswer(s: (String, QuestionTag)) = try {
       Option(replaceCommentTag(content.substring(content.indexOf(s._2.startTag) + s._2.startTag.length, content.indexOf(s._2.endTag))))

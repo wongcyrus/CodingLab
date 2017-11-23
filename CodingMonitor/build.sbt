@@ -12,6 +12,7 @@ libraryDependencies ++= Seq(
   "org.zeroturnaround" % "zt-zip" % "1.+",
   "com.google.zxing" % "core" % "3.+",
   "com.google.zxing" % "javase" % "3.+",
+  "org.scalaz" %% "scalaz-core" % "7.3.+",
   "org.scalatest" %% "scalatest" % "3.+" % "test"
 )
 

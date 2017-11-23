@@ -1,6 +1,6 @@
 package hk.edu.vtc.it.codemonitor
 
-case class Student(source: String, api: String, email: String, accessKey: String, secretKey: String, isTest: Boolean)
+case class Student(source: String, api: String, email: String, apiKey: String, isTest: Boolean)
 
 case class Question(source: String, subQuestion: Set[String])
 

@@ -1,0 +1,307 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+Description: Code Collection Application
+Parameters:
+  SourceBucket:
+    Type: String
+    Description: Bucket Lambda deployment packages
+  DynamodbAutoscaling:
+    Type: String
+    Default: true
+    AllowedValues:
+      - true
+      - false
+    Description: Enable DynamoDB AutoScaling
+Conditions:
+  EnableDynamodbAutoscaling: !Equals [ !Ref DynamodbAutoscaling, true ]
+Resources:
+  AnswerCollectorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: codeCollector.put
+      Runtime: nodejs6.10
+      CodeUri:
+        Bucket: !Ref SourceBucket
+        Key: CodeCollector_latest.zip
+      Description:  Lab Answer Collector
+      MemorySize: 512
+      Timeout: 60
+      Tracing: Active
+      Policies:
+        - AWSLambdaExecute # Managed Policy
+        - AWSXrayWriteOnlyAccess
+        - AmazonDynamoDBFullAccess
+      Environment:
+        Variables:
+          codeBucket: !Ref CodeBucket
+          finalAnswerTable: !Ref FinalAnswerTable
+          answerHistroryTable: !Ref AnswerHistroryTable
+      Events:
+        PutResource:
+          Type: Api
+          Properties:
+            Path: /resource/{resourceId}
+            Method: put
+            RestApiId: !Ref ApiGatewayApi
+
+  ApiKeyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: importApiKey.handler
+      Runtime: nodejs6.10
+      CodeUri:
+        Bucket: !Ref SourceBucket
+        Key: CodeCollector_latest.zip
+      Description:  Import API Gateway API Key
+      MemorySize: 512
+      Timeout: 60
+      Tracing: Active
+      Policies:
+        - AWSLambdaExecute # Managed Policy
+        - AWSXrayWriteOnlyAccess
+        - Version: '2012-10-17' # Policy Document
+          Statement:
+            - Effect: Allow
+              Action:
+              - apigateway:POST
+              - apigateway:DELETE
+              Resource:
+              - !Sub arn:aws:apigateway:${AWS::Region}::/apikeys
+      Environment:
+        Variables:
+          usagePlanId: !Ref UsagePlan
+
+  ApiKeysCustomReseources:
+    Type: Custom::ApiKeys
+    Version: 1.0
+    Properties:
+      ServiceToken: !GetAtt ApiKeyFunction.Arn
+      StackName:
+        Ref: AWS::StackName
+
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        swagger: 2.0
+        basePath: /Prod
+        info:
+          title:
+            Ref: AWS::StackName
+        schemes:
+        - https
+        paths:
+          /resource/{resourceId}:
+            put:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${AnswerCollectorFunction.Arn}/invocations
+              responses: {}
+              security:
+              - api_key: []
+        securityDefinitions:
+          api_key:
+            type: apiKey
+            name: x-api-key
+            in: header
+
+  UsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: ApiGatewayApi
+    Properties:
+      ApiStages:
+      - ApiId: !Ref ApiGatewayApi
+        Stage: !Ref ApiGatewayApiProdStage
+      Description: Student usage plan
+      Quota:
+        Limit: 10000
+        Period: DAY
+      Throttle:
+        BurstLimit: 100
+        RateLimit: 60
+      UsagePlanName: Plan_Student
+
+  CodeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      AccessControl: Private
+      VersioningConfiguration:
+        Status: Enabled
+
+  FinalAnswerTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: lab
+          AttributeType: S
+        -
+          AttributeName: email_question
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: lab
+          KeyType: HASH
+        -
+          AttributeName: email_question
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  AnswerHistroryTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      AttributeDefinitions:
+        -
+          AttributeName: lab
+          AttributeType: S
+        -
+          AttributeName: email_question_time
+          AttributeType: S
+      KeySchema:
+        -
+          AttributeName: lab
+          KeyType: HASH
+        -
+          AttributeName: email_question_time
+          KeyType: RANGE
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+# DynamoDB AutoScaling
+  DynamoDBAutoscalingRole:
+    Type: AWS::IAM::Role
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - application-autoscaling.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: lambdaIAMRolePolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeTable
+                  - dynamodb:UpdateTable
+                Resource:
+                  - !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*
+              - Effect: Allow
+                Action:
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:PutMetricAlarm
+                  - cloudwatch:DeleteAlarms
+                Resource: "*"
+
+  FinalAnswerDynamoDBTableWriteScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 50
+      ResourceId: !Sub table/${FinalAnswerTable}
+      RoleARN: !GetAtt DynamoDBAutoscalingRole.Arn
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  FinalAnswerDynamoDBTableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      PolicyName: TableWriteScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref FinalAnswerDynamoDBTableWriteScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        TargetValue: 75
+
+  FinalAnswerDynamoDBTableReadScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 50
+      ResourceId: !Sub table/${FinalAnswerTable}
+      RoleARN: !GetAtt DynamoDBAutoscalingRole.Arn
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  FinalAnswerDynamoDBTableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      PolicyName: TableReadScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref FinalAnswerDynamoDBTableReadScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        TargetValue: 75
+
+  AnswerHistroryDynamoDBTableWriteScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 50
+      ResourceId: !Sub table/${AnswerHistroryTable}
+      RoleARN: !GetAtt DynamoDBAutoscalingRole.Arn
+      ScalableDimension: dynamodb:table:WriteCapacityUnits
+      ServiceNamespace: dynamodb
+
+  AnswerHistroryDynamoDBTableWriteScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      PolicyName: TableWriteScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AnswerHistroryDynamoDBTableWriteScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBWriteCapacityUtilization
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        TargetValue: 75
+
+  AnswerHistroryDynamoDBTableReadScalingTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      MinCapacity: 1
+      MaxCapacity: 50
+      ResourceId: !Sub table/${AnswerHistroryTable}
+      RoleARN: !GetAtt DynamoDBAutoscalingRole.Arn
+      ScalableDimension: dynamodb:table:ReadCapacityUnits
+      ServiceNamespace: dynamodb
+
+  AnswerHistroryDynamoDBTableReadScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: EnableDynamodbAutoscaling
+    Properties:
+      PolicyName: TableReadScalingPolicy
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref AnswerHistroryDynamoDBTableReadScalingTarget
+      TargetTrackingScalingPolicyConfiguration:
+        PredefinedMetricSpecification:
+          PredefinedMetricType: DynamoDBReadCapacityUtilization
+        ScaleInCooldown: 60
+        ScaleOutCooldown: 60
+        TargetValue: 75

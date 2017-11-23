@@ -6,12 +6,12 @@ import java.nio.file.Path
 import java.util.Date
 
 import com.beachape.filemanagement.RegistryTypes.Callback
-
-import scala.io.Source
-import scalaj.http.Http
 import org.json4s._
 import org.json4s.jackson.Serialization
 import org.json4s.jackson.Serialization.write
+
+import scala.io.Source
+import scalaj.http.Http
 
 class CodeChangeMonitor(sourceDir: File, student: Student) {
   private val startTime = new Date
@@ -41,26 +41,25 @@ class CodeChangeMonitor(sourceDir: File, student: Student) {
     Option(t._1, t._2, answer)
   }
 
-  case class Metadata(hostname: String, ip: String, mac: String, email: String, filePathName: String, answers: List[QuestionAnswer], startTime: Date)
+  case class Metadata(hostname: String, ip: String, mac: String, email: String, lab: String, filePathName: String, answers: QuestionAnswer, startTime: Date)
 
   private def uploadChanged(t: (Path, String, List[QuestionAnswer])): Option[Boolean] = {
     try {
-      println(t)
       val filePathName = t._1.getFileName.toString
       val ip = InetAddress.getLocalHost
       val network = NetworkInterface.getByInetAddress(ip)
       val mac = network.getHardwareAddress.toString
-      val metadata = Metadata(ip.getHostName, ip.getHostAddress, mac, student.email, filePathName, t._3, startTime)
+      val lab = student.source.split("/").last
+      val metadata = Metadata(ip.getHostName, ip.getHostAddress, mac, student.email, lab, filePathName, t._3.head, startTime)
 
       implicit val formats = Serialization.formats(NoTypeHints)
 
       val body = write(metadata)
-      val answers = write(t._3)
-      println(answers)
+      println(body)
       val response = Http(student.api + "/resource/" + student.email)
         .put(body)
+        .header("x-api-key", student.apiKey)
         .param("code", t._2)
-        .param("answers", answers)
         .asParamMap
       println(response.code)
       Option(response.code == 200)
