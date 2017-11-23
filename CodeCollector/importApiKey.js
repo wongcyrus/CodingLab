@@ -1,5 +1,6 @@
 'use strict';
-const AWS = require('aws-sdk');
+const AWSXRay = require('aws-xray-sdk');
+const AWS = AWSXRay.captureAWS(require('aws-sdk'));
 const apigateway = new AWS.APIGateway();
 const fs = require('fs');
 const response = require('cfn-response');
@@ -7,14 +8,17 @@ const response = require('cfn-response');
 const usagePlanId = process.env.usagePlanId;
 
 exports.handler = (event, context, callback) => {
-    console.log(JSON.stringify(event, null, '  '));
+    console.log(JSON.stringify(event));
     if (event.RequestType === 'Delete') {
         let getKeyJson = () => new Promise((resolve, reject) => {
             let params = {
                 usagePlanId
             };
             apigateway.getUsagePlanKeys(params, (err, data) => {
-                if (err) reject(err); // an error occurred
+                if (err) {
+                    console.error(err);
+                    reject(err);
+                } // an error occurred
                 else resolve(data.items.map(c => c.id));           // successful response
             });
         });

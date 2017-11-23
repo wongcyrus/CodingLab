@@ -5,6 +5,17 @@ Conditions:
     - Ref: DynamodbAutoscaling
     - true
 Description: Code Collection Application
+Outputs:
+  ApiUrl:
+    Description: URL of your API endpoint
+    Value:
+      Fn::Join:
+      - ''
+      - - https://
+        - Ref: ApiGatewayApi
+        - .execute-api.
+        - Ref: AWS::Region
+        - .amazonaws.com/Prod
 Parameters:
   DynamodbAutoscaling:
     AllowedValues:
@@ -173,6 +184,12 @@ Resources:
           Effect: Allow
           Resource:
           - Fn::Sub: arn:aws:apigateway:${AWS::Region}::/apikeys
+          - Fn::Sub: arn:aws:apigateway:${AWS::Region}::/apikeys/*
+        - Action:
+          - apigateway:GET
+          Effect: Allow
+          Resource:
+          - Fn::Sub: arn:aws:apigateway:${AWS::Region}::/usageplans/*/keys
         Version: '2012-10-17'
       Runtime: nodejs6.10
       Timeout: 60
@@ -303,9 +320,7 @@ Resources:
       - ApiId:
           Ref: ApiGatewayApi
         Stage:
-          Fn::GetAtt:
-          - ApiGatewayApi
-          - StageName
+          Ref: ApiGatewayApiProdStage
       Description: Student usage plan
       Quota:
         Limit: 10000

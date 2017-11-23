@@ -1,5 +1,6 @@
 'use strict';
-const AWS = require('aws-sdk');
+const AWSXRay = require('aws-xray-sdk');
+const AWS = AWSXRay.captureAWS(require('aws-sdk'));
 const dynamo = new AWS.DynamoDB.DocumentClient();
 const s3 = new AWS.S3();
 const csv = require('csvtojson');
