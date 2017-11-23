@@ -141,6 +141,14 @@ Resources:
           title:
             Ref: AWS::StackName
         paths:
+          /qrcode/{jsonData}:
+            get:
+              responses: {}
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QrCodeGeneratorFunction.Arn}/invocations
           /resource/{resourceId}:
             put:
               responses: {}
@@ -313,6 +321,30 @@ Resources:
         ReadCapacityUnits: 5
         WriteCapacityUnits: 5
     Type: AWS::DynamoDB::Table
+  QrCodeGeneratorFunction:
+    Properties:
+      CodeUri:
+        Bucket:
+          Ref: SourceBucket
+        Key: CodeCollector_latest.zip
+      Description: Generate Qrcode.
+      Events:
+        GetResource:
+          Properties:
+            Method: get
+            Path: /qrcode/{jsonData}
+            RestApiId:
+              Ref: ApiGatewayApi
+          Type: Api
+      Handler: getQrcode.get
+      MemorySize: 512
+      Policies:
+      - AWSLambdaExecute
+      - AWSXrayWriteOnlyAccess
+      Runtime: nodejs6.10
+      Timeout: 60
+      Tracing: Active
+    Type: AWS::Serverless::Function
   UsagePlan:
     DependsOn: ApiGatewayApi
     Properties:

@@ -44,6 +44,29 @@ Resources:
             Method: put
             RestApiId: !Ref ApiGatewayApi
 
+  QrCodeGeneratorFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getQrcode.get
+      Runtime: nodejs6.10
+      CodeUri:
+        Bucket: !Ref SourceBucket
+        Key: CodeCollector_latest.zip
+      Description:  Generate Qrcode.
+      MemorySize: 512
+      Timeout: 60
+      Tracing: Active
+      Policies:
+        - AWSLambdaExecute # Managed Policy
+        - AWSXrayWriteOnlyAccess
+      Events:
+        GetResource:
+          Type: Api
+          Properties:
+            Path: /qrcode/{jsonData}
+            Method: get
+            RestApiId: !Ref ApiGatewayApi
+
   ApiKeyFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -108,6 +131,14 @@ Resources:
               responses: {}
               security:
               - api_key: []
+          /qrcode/{jsonData}:
+            get:
+              x-amazon-apigateway-integration:
+                httpMethod: POST
+                type: aws_proxy
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${QrCodeGeneratorFunction.Arn}/invocations
+              responses: {}
         securityDefinitions:
           api_key:
             type: apiKey

@@ -1,6 +1,6 @@
 SET SourceBucket=howwhofeelinvideopackage
-#node C:\Users\developer\AppData\Roaming\npm\node_modules\grunt-cli\bin\grunt --gruntfile ..\Gruntfile.js lambda_package
-#aws s3 cp ../dist/CodeCollector_latest.zip s3://%SourceBucket%/CodeCollector_latest.zip
+node C:\Users\developer\AppData\Roaming\npm\node_modules\grunt-cli\bin\grunt --gruntfile ..\Gruntfile.js lambda_package
+aws s3 cp ../dist/CodeCollector_latest.zip s3://%SourceBucket%/CodeCollector_latest.zip
 
 del CodeCollector-packaged-template.yaml
 
